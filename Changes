@@ -1,5 +1,13 @@
 Revision history for Perl extension JavaScript::Lite
 
+0.02  Web 13 May 15:53:00 2009
+    - Use more memory in unit tests; 20KB isnt enough for the new spidermonkey
+      to load it's standard classes.
+    - Added a "branch_callback" handler, mainly useful for aborting runaway
+      javascripts.
+
 0.01  Thu 19 Jun 17:35:00 2008
 	- Initial "release"... Very alpha... hacked together over
       the course of YAPC::NA 2008.
+
+

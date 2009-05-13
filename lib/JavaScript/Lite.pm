@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Carp qw(croak);
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 require XSLoader;
 XSLoader::load('JavaScript::Lite', $VERSION);
@@ -221,6 +221,18 @@ C<$object> must be a top-level ECMAscript global object.
 Nesting more than one layer deep (eg; "some_object.some.deep.property")
 is not supported. For that functionality, see the L<JavaScript>
 distribution.
+
+=item branch_callback($callback[, $interval])
+
+Run C<$callback> every C<$interval> branches in the javascript.
+Branches are caused by things such as for() or while() loop invocation.
+C<$callback> should a a subroutine reference; if the subroutine returns
+a true value, the javascript will continue running. If it returns a false
+value or dies, the javascript will terminate and an exception will be thrown.
+
+If you do not specify C<$interval>, the callback will be executed during
+every branch in javascript. This will slow down the script considerably;
+for best results, you should use a value at least in the several thousands.
 
 =back
 

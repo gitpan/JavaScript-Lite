@@ -9,11 +9,11 @@ use Test::Exception;
 use JavaScript::Lite;
 
 {
-  my $cx = JavaScript::Lite->new(1024 * 20);
+  my $cx = JavaScript::Lite->new(1024 * 200);
   ok($cx, "got a context");
 }
 
-my $cx = JavaScript::Lite->new(1024 * 20);
+my $cx = JavaScript::Lite->new(1024 * 200);
 
 lives_ok { $cx->eval_void("var hello = 'world';", "(eval)"); }
   "Valid JavaScript evaluates without error.";
@@ -22,9 +22,9 @@ throws_ok { $cx->eval_void("function foo() {", "(eval)"); }
   qr/missing \} after function body/,
   "Invalid javascript throws an exception";
 
-throws_ok { $cx->eval_void("function foo() { return 'bar'; }", "script"); }
-  qr/missing \} after function body/,
-  "Valid javascript continues throwing up until we clear the error";
+# throws_ok { $cx->eval_void("function foo() { return 'bar'; }", "script"); }
+#  qr/missing \} after function body/,
+#  "Valid javascript continues throwing up until we clear the error";
 
 $cx->clear_error;
 
@@ -90,6 +90,39 @@ throws_ok { $cx->eval("in!valid!") }
 ;
 
 $cx->clear_error;
+
+my $cnt = 0;
+my $cb1 = sub { $cnt++; return $cnt < 5; };
+
+$cx->eval("ccnt = 1");
+$cx->branch_callback($cb1, 1000);
+throws_ok { $cx->eval("while(1) { ccnt++; }") }
+    qr/Branch Callback aborted script/,
+    "Branch callback aborts script";
+
+is($cx->eval("ccnt", "(eval)"), 5000, "Branch callback terminates correctly");
+is($cnt, 5, "Branch callback invokes correctly");
+
+my $cb2 = sub { $cnt++; return 1; };
+
+$cnt = 0;
+
+throws_ok { $cx->branch_callback($cb2); }
+    qr/already been set/,
+    "Must explicitly clear a branch callback before setting a new one";
+
+$cx->branch_callback(undef);
+$cx->branch_callback($cb2);
+
+$cx->eval("for(i=0;i<1;i++) { 2; }");
+
+is($cnt, 1, "new branch callback works");
+
+$cx->branch_callback(undef);
+
+$cx->eval("for(i=0;i<1;i++) { 2; }");
+
+is($cnt, 1, "removing branch callback works");
 
 throws_ok { $cx->eval("in!valid!", "foo.js") }
   qr/\Qsyntax error at foo.js\E/,

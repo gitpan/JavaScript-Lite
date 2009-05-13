@@ -1,11 +1,11 @@
 --- #YAML:1.0
 name:                JavaScript-Lite
-version:             0.01
+version:             0.02
 abstract:            Bare-bones interface to SpiderMonkey ECMAscript API
 license:             perl
 author:              
     - Tyler MacDonald <japh@crackerjack.net>
-generated_by:        ExtUtils::MakeMaker version 6.44
+generated_by:        ExtUtils::MakeMaker version 6.42
 distribution_type:   module
 requires:     
     Test::Exception:               0.27

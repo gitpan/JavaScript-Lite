@@ -26,6 +26,12 @@ typedef struct xsjs_err {
   int32 line;
 } xsjs_err;
 
+typedef struct xsjs_appdata {
+  SV*               branch_callback;
+  unsigned long     branch_interval;
+  unsigned long     branch_counter;
+} xsjs_appdata;
+
 const xsjs_err unknown_err = { "(null)", "(null)", 0 };
 
 typedef struct xsjs_rv {
@@ -236,6 +242,96 @@ build_value(cx,v)
   return jval;  
 }
 
+JSBool run_branch_callback(cx, script)
+  JSContext *cx;
+  JSScript *script;
+{
+  xsjs_appdata* appdata = JS_GetRuntimePrivate(JS_GetRuntime(cx));
+  SV* rv;
+  bool rv_b;
+  int count;
+
+  appdata->branch_counter ++;
+  if(appdata->branch_counter >= appdata->branch_interval) {
+    appdata->branch_counter = 0;
+
+    dSP;
+
+    ENTER;
+    SAVETMPS;
+
+    PUSHMARK(SP);
+
+    count = call_sv(appdata->branch_callback, G_SCALAR | G_EVAL);
+
+    SPAGAIN;
+
+    if(SvTRUE(ERRSV)) {
+      STRLEN n_a;
+      JS_ReportError(cx, "Branch Callback failed: %s", SvPV(ERRSV, n_a));
+      rv_b = 0;
+    } else {
+      if(count == 0) {
+        rv_b = 0;
+      } else if(count != 1) {
+        croak("Bad arguments!");
+      } else {
+        rv = POPs;
+        rv_b = SvTRUE(rv);
+        if(!rv_b) {
+          JS_ReportError(cx, "Branch Callback aborted script");
+        }
+      }
+    }
+
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+
+    if(rv_b) {
+      return JS_TRUE;
+    } else {
+      return JS_FALSE;
+    }
+  } else {
+    return JS_TRUE;
+  }
+}
+
+void
+set_branch_callback(cx,cb,interval)
+  JSContext *cx;
+  unsigned long interval;
+  SV *cb;
+{
+  xsjs_appdata *appdata = JS_GetRuntimePrivate(JS_GetRuntime(cx));
+
+  if(appdata->branch_callback) {
+    croak("branch callback has already been set");
+  }
+
+  SvREFCNT_inc(cb);
+  appdata->branch_callback = cb;
+  appdata->branch_interval = interval;
+  appdata->branch_counter = 0;
+
+  JS_SetBranchCallback(cx, run_branch_callback);
+}
+
+void
+clear_branch_callback(cx)
+  JSContext *cx;
+{
+  xsjs_appdata* appdata = JS_GetRuntimePrivate(JS_GetRuntime(cx));
+
+  if(appdata->branch_callback) {
+    SvREFCNT_dec(appdata->branch_callback);
+    appdata->branch_callback = NULL;
+    appdata->branch_interval = 0;
+    appdata->branch_counter = 0;
+    JS_SetBranchCallback(cx, NULL);
+  }
+}
 
 void
 assign_property(cx,obj,k,v)
@@ -350,26 +446,41 @@ create(const char* class_name, long maxmem)
     JSRuntime* rt;
     JSContext* cx;
     JSObject* gobj;
+    xsjs_appdata* appdata;
   CODE:
     rt = JS_NewRuntime(maxmem);
     if(rt == NULL)
       croak("%s: Failed to create JavaScript runtime!", class_name);
     cx = JS_NewContext(rt, 8192);
-    if(rt == NULL)
+    if(cx == NULL)
       croak("%s: Failed to create JavaScript context!", class_name);
+#ifdef JSOPTION_DONT_REPORT_UNCAUGHT
+    JS_SetOptions(cx, JSOPTION_DONT_REPORT_UNCAUGHT);
+#endif
     gobj = JS_NewObject(cx, &global_class, NULL, NULL);
     if(!gobj)
       croak("%s: Failed to create the global object", class_name);
     if (JS_InitStandardClasses(cx, gobj) == JS_FALSE)
       croak("%s: Standard classes not loaded properly.", class_name);
-#ifdef JSOPTION_DONT_REPORT_UNCAUGHT
-    JS_SetOptions(cx, JSOPTION_DONT_REPORT_UNCAUGHT);
-#endif
     JS_SetGlobalObject(cx, gobj);
+    appdata = malloc(sizeof(xsjs_appdata));
+    memset(appdata, 0, sizeof(xsjs_appdata));
+    JS_SetRuntimePrivate(rt, appdata);
 
     RETVAL = cx;
   OUTPUT:
     RETVAL
+
+void branch_callback(cx, callback, interval=0)
+    JSContext*  cx;
+    SV* callback;
+    unsigned long interval;
+  CODE:
+    if(SvTRUE(callback)) {
+      set_branch_callback(cx, callback, interval);
+    } else {
+      clear_branch_callback(cx);
+    }
 
 char* invoke(cx, name)
     JSContext*  cx;
@@ -418,8 +529,13 @@ void DESTROY(cx)
     JSContext* cx;
   PREINIT:
     JSRuntime* rt;
+    xsjs_appdata* appdata;
   CODE:
     rt = JS_GetRuntime(cx);
+    clear_branch_callback(cx);
+    appdata = (xsjs_appdata*) JS_GetRuntimePrivate(rt);
+    JS_SetRuntimePrivate(rt, NULL);
+    if(appdata) free(appdata);
     JS_DestroyContext(cx);
     JS_DestroyRuntime(rt);
 
