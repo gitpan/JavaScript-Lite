@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                JavaScript-Lite
-version:             0.02
+version:             0.03
 abstract:            Bare-bones interface to SpiderMonkey ECMAscript API
 license:             perl
 author:              

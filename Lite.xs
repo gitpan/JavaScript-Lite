@@ -247,12 +247,14 @@ JSBool run_branch_callback(cx, script)
   JSScript *script;
 {
   xsjs_appdata* appdata = JS_GetRuntimePrivate(JS_GetRuntime(cx));
-  SV* rv;
-  bool rv_b;
-  int count;
 
   appdata->branch_counter ++;
+
   if(appdata->branch_counter >= appdata->branch_interval) {
+    SV* rv;
+    bool rv_b;
+    int count;
+
     appdata->branch_counter = 0;
 
     dSP;
@@ -481,6 +483,12 @@ void branch_callback(cx, callback, interval=0)
     } else {
       clear_branch_callback(cx);
     }
+
+void clear_branch_counter(cx)
+    JSContext* cx
+  CODE:
+    xsjs_appdata* appdata = JS_GetRuntimePrivate(JS_GetRuntime(cx));
+    appdata->branch_counter = 0;
 
 char* invoke(cx, name)
     JSContext*  cx;

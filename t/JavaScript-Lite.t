@@ -100,7 +100,12 @@ throws_ok { $cx->eval("while(1) { ccnt++; }") }
     qr/Branch Callback aborted script/,
     "Branch callback aborts script";
 
-is($cx->eval("ccnt", "(eval)"), 5000, "Branch callback terminates correctly");
+$cx->clear_error;
+
+my $ccnt = $cx->eval("ccnt", "(eval)");
+$ccnt = 5000 if($ccnt == 5001); # work around discrepancy in versions of mozjs
+
+is($ccnt, 5000, "Branch callback terminates correctly");
 is($cnt, 5, "Branch callback invokes correctly");
 
 my $cb2 = sub { $cnt++; return 1; };
@@ -110,6 +115,8 @@ $cnt = 0;
 throws_ok { $cx->branch_callback($cb2); }
     qr/already been set/,
     "Must explicitly clear a branch callback before setting a new one";
+
+$cx->clear_error;
 
 $cx->branch_callback(undef);
 $cx->branch_callback($cb2);
