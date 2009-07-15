@@ -498,7 +498,6 @@ char* invoke(cx, name)
     jsval       rval;
     JSObject*   global;
     JSBool      rv;  
-    JSFunction* ffunc;
     JSString*   s_rval;
     xsjs_err    err;
   CODE:
@@ -506,8 +505,8 @@ char* invoke(cx, name)
       rv = JS_GetProperty(cx, global, name, &fval);
       if(rv == JS_FALSE)
         croak("Failed to find global javascript function '%s'!", name);
-      if((ffunc = JS_ValueToFunction(cx, fval))) {
-        rv = JS_CallFunction(cx, global, ffunc, 0, NULL, &rval);
+      if(JSVAL_IS_OBJECT(fval) && JS_ObjectIsFunction(cx, JSVAL_TO_OBJECT(fval))) {
+        rv = JS_CallFunctionValue(cx, global, fval, 0, NULL, &rval);
         if(rv == JS_FALSE) {
           err = get_error(cx);
           croak("JavaScript: %s at %s line %d", err.message, err.file, err.line);

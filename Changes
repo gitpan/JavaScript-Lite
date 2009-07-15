@@ -1,5 +1,9 @@
 Revision history for Perl extension JavaScript::Lite
 
+0.04  Wed 15 Jul 13:40:00 2009
+    - Fixed the "invoke()" method to work correctly with recent versions
+      of SpiderMonkey
+
 0.03  Wed 13 May 16:30:00 2009
     - Allow the branch counter to be cleared
 
